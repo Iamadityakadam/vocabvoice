@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VocabVoice — AI Vocabulary Coach</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#f5f7fb;color:#172033}
+  .app{max-width:900px;margin:0 auto;padding:28px 18px 50px}.hero{text-align:center;margin-bottom:22px}
+  .badge{display:inline-block;background:#e9edff;color:#4255c7;padding:7px 12px;border-radius:999px;font-size:13px;font-weight:700}
+  h1{font-size:38px;margin:12px 0 8px}.hero p{color:#657085;margin:0}
+  .card{background:#fff;border:1px solid #e4e8f0;border-radius:20px;padding:22px;box-shadow:0 8px 30px #1820330d;margin-bottom:16px}
+  .top{display:flex;justify-content:space-between;gap:15px;align-items:center}.word{font-size:42px;font-weight:800}.part{color:#68738a;font-style:italic}
+  button{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;font-size:14px}
+  .primary{background:#4b5fe7;color:#fff}.secondary{background:#eef1f7;color:#28334a}.danger{background:#fff0f0;color:#c43c3c}
+  .meaning{font-size:18px;margin:16px 0 8px}.example{background:#f7f8fc;border-radius:12px;padding:14px;color:#505c73}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.mic{min-width:190px}.mic.listening{background:#d94747}
+  .status{margin-top:13px;color:#667085;font-size:14px;min-height:20px}.transcript{font-weight:700;color:#27314a}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.score{text-align:center}.score strong{font-size:32px}
+  .quiz-question{font-size:20px;font-weight:750;margin:8px 0 14px}.options{display:grid;gap:9px}.options button{text-align:left;background:#f4f6fa}
+  .options button.correct{background:#dcf8e6;color:#16723b}.options button.wrong{background:#ffe1e1;color:#a52d2d}
+  .history{display:flex;gap:8px;flex-wrap:wrap}.pill{padding:7px 10px;background:#f0f2f7;border-radius:999px;font-size:13px}
+  footer{text-align:center;color:#8a93a5;font-size:12px;margin-top:20px}
+  @media(max-width:650px){.grid{grid-template-columns:1fr}.word{font-size:34px}h1{font-size:31px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <span class="badge">🎙️ Voice-first vocabulary coach</span>
+    <h1>VocabVoice</h1>
+    <p>Learn a word, hear it, speak it, and test yourself.</p>
+  </div>
+
+  <div class="card">
+    <div class="top">
+      <div><div class="word" id="word">Curious</div><div class="part" id="part">adjective</div></div>
+      <button class="secondary" onclick="speakWord()">🔊 Hear word</button>
+    </div>
+    <div class="meaning" id="meaning">Wanting to know or learn something.</div>
+    <div class="example" id="example">“She was curious about how the machine worked.”</div>
+    <div class="controls">
+      <button class="primary mic" id="micBtn" onclick="toggleListening()">🎤 Say the word</button>
+      <button class="secondary" onclick="nextWord()">➡️ Next word</button>
+      <button class="secondary" onclick="startQuiz()">🧠 Quick quiz</button>
+    </div>
+    <div class="status" id="status">Tip: say the displayed word clearly.</div>
+    <div class="transcript" id="transcript"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card score">
+      <div>Learning score</div><strong id="score">0</strong><div id="scoreText">Start practicing!</div>
+    </div>
+    <div class="card">
+      <b>Words practiced</b>
+      <div class="history" id="history" style="margin-top:12px"><span class="pill">None yet</span></div>
+    </div>
+  </div>
+
+  <div class="card" id="quizCard" style="display:none">
+    <b>Quick quiz</b>
+    <div class="quiz-question" id="quizQuestion"></div>
+    <div class="options" id="options"></div>
+    <div class="status" id="quizStatus"></div>
+  </div>
+
+  <footer>Built as a simple portfolio prototype • Uses your browser's speech recognition and text-to-speech.</footer>
+</div>
+
+<script>
+const words=[
+ {w:"Curious",p:"adjective",m:"Wanting to know or learn something.",e:"“She was curious about how the machine worked.”"},
+ {w:"Resilient",p:"adjective",m:"Able to recover quickly from difficulty.",e:"“He stayed resilient after the setback.”"},
+ {w:"Efficient",p:"adjective",m:"Working well without wasting time or resources.",e:"“The new process is more efficient.”"},
+ {w:"Empathy",p:"noun",m:"The ability to understand and share another person's feelings.",e:"“Good listeners show empathy.”"},
+ {w:"Adapt",p:"verb",m:"To change your behavior or approach to suit a new situation.",e:"“You need to adapt to new challenges.”"},
+ {w:"Diligent",p:"adjective",m:"Careful and hardworking in doing something.",e:"“She is diligent about completing her tasks.”"}
+];
+let index=0,score=0,history=[],recognition=null;
+
+function render(){
+ const x=words[index]; word.textContent=x.w; part.textContent=x.p; meaning.textContent=x.m; example.textContent=x.e;
+ transcript.textContent="";
+ status.textContent="Tip: say the displayed word clearly.";
+}
+function speak(text=words[index].w){ if(!("speechSynthesis" in window)){status.textContent="Text-to-speech is not supported in this browser.";return}
+ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.85; speechSynthesis.speak(u);
+}
+function speakWord(){speak()}
+function nextWord(){index=(index+1)%words.length;render();speak()}
+function toggleListening(){
+ if(!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)){
+  status.textContent="Voice recognition is not supported here. Try Google Chrome on desktop or Android."; return;
+ }
+ if(recognition){recognition.stop();return}
+ const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+ recognition=new R(); recognition.lang="en-US"; recognition.interimResults=false; recognition.maxAlternatives=3;
+ micBtn.classList.add("listening"); micBtn.textContent="🛑 Stop listening"; status.textContent="Listening… say: "+words[index].w;
+ recognition.onresult=e=>{
+   const heard=e.results[0][0].transcript.trim(); transcript.textContent="You said: “"+heard+"”";
+   const target=words[index].w.toLowerCase(), got=heard.toLowerCase().replace(/[^a-z ]/g,"");
+   if(got.includes(target) || target.includes(got)){
+     score+=10; addHistory(words[index].w); status.textContent="✅ Great pronunciation! +10 points"; speak("Great job!");
+   } else {status.textContent="Almost! The target word is “"+words[index].w+"”. Try again."; speak(words[index].w)}
+   updateScore();
+ };
+ recognition.onerror=()=>status.textContent="I couldn't hear that clearly. Please try again.";
+ recognition.onend=()=>{recognition=null;micBtn.classList.remove("listening");micBtn.textContent="🎤 Say the word"};
+ recognition.start();
+}
+function addHistory(w){if(!history.includes(w))history.push(w);document.getElementById("history").innerHTML=history.map(x=>`<span class="pill">${x}</span>`).join("")}
+function updateScore(){document.getElementById("score").textContent=score;document.getElementById("scoreText").textContent=score>=50?"Excellent progress!":score>0?"Keep going!":"Start practicing!"}
+
+function startQuiz(){
+ const x=words[index]; quizCard.style.display="block"; quizQuestion.textContent="What does “"+x.w+"” mean?";
+ const choices=[x.m];
+ const others=words.filter(a=>a!==x).sort(()=>Math.random()-.5).slice(0,2).map(a=>a.m);
+ choices.push(...others); choices.sort(()=>Math.random()-.5);
+ options.innerHTML=choices.map(c=>`<button onclick="answerQuiz(this, ${JSON.stringify(c===x.m)})">${c}</button>`).join("");
+ quizStatus.textContent="";
+ quizCard.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function answerQuiz(btn,correct){
+ document.querySelectorAll("#options button").forEach(b=>b.disabled=true);
+ if(correct){btn.classList.add("correct");score+=20;quizStatus.textContent="✅ Correct! +20 points";speak("Correct!")}
+ else{btn.classList.add("wrong");quizStatus.textContent="❌ Not quite. Try the next word.";speak("Try again")}
+ updateScore();
+}
+render();
+</script>
+</body>
+</html>
